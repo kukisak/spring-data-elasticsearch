@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2014 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import org.springframework.data.elasticsearch.annotations.Document;
  * @author Franck Marchand
  * @author Mohsin Husen
  */
-@Document(indexName = "test-geo-index", type = "geo-class-point-type", shards = 1, replicas = 0, refreshInterval = "-1")
+@Document(indexName = "test-index-author-marker", type = "geo-class-point-type", shards = 1, replicas = 0, refreshInterval = "-1")
 public class AuthorMarkerEntity {
 
 	@Id

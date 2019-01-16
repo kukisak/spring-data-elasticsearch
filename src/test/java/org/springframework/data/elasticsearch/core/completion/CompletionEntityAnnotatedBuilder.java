@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2014 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,25 +36,11 @@ public class CompletionEntityAnnotatedBuilder {
 	}
 
 	public CompletionEntityAnnotatedBuilder suggest(String[] input) {
-		return suggest(input, null, null, null);
+		return suggest(input, null);
 	}
 
-	public CompletionEntityAnnotatedBuilder suggest(String[] input, String output) {
-		return suggest(input, output, null, null);
-	}
-
-	public CompletionEntityAnnotatedBuilder suggest(String[] input, String output, Object payload) {
-		return suggest(input, output, payload, null);
-	}
-
-	public CompletionEntityAnnotatedBuilder suggest(String[] input, String output, Object payload, Integer weight) {
+	public CompletionEntityAnnotatedBuilder suggest(String[] input, Integer weight) {
 		Completion suggest = new Completion(input);
-		if (output != null) {
-			suggest.setOutput(output);
-		}
-		if (payload != null) {
-			suggest.setPayload(payload);
-		}
 		if (weight != null) {
 			suggest.setWeight(weight);
 		}

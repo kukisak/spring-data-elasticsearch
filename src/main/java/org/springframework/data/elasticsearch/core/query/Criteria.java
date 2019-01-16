@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@ package org.springframework.data.elasticsearch.core.query;
 
 import java.util.*;
 
-import org.apache.commons.lang.StringUtils;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.elasticsearch.core.geo.GeoBox;
 import org.springframework.data.elasticsearch.core.geo.GeoPoint;
@@ -42,8 +43,8 @@ public class Criteria {
 				"field=" + field.getName() +
 				", boost=" + boost +
 				", negating=" + negating +
-				", queryCriteria=" + StringUtils.join(queryCriteria, '|') +
-				", filterCriteria=" + StringUtils.join(filterCriteria, '|') +
+				", queryCriteria=" + ObjectUtils.nullSafeToString(queryCriteria) +
+				", filterCriteria=" + ObjectUtils.nullSafeToString(filterCriteria) +
 				'}';
 	}
 
@@ -57,11 +58,11 @@ public class Criteria {
 	private float boost = Float.NaN;
 	private boolean negating = false;
 
-	private List<Criteria> criteriaChain = new ArrayList<Criteria>(1);
+	private List<Criteria> criteriaChain = new ArrayList<>(1);
 
-	private Set<CriteriaEntry> queryCriteria = new LinkedHashSet<CriteriaEntry>();
+	private Set<CriteriaEntry> queryCriteria = new LinkedHashSet<>();
 
-	private Set<CriteriaEntry> filterCriteria = new LinkedHashSet<CriteriaEntry>();
+	private Set<CriteriaEntry> filterCriteria = new LinkedHashSet<>();
 
 	public Criteria() {
 	}
@@ -437,7 +438,7 @@ public class Criteria {
 	 * @return
 	 */
 	public Criteria within(String geoLocation, String distance) {
-		Assert.isTrue(StringUtils.isNotBlank(geoLocation), "geoLocation value must not be null");
+		Assert.isTrue(!StringUtils.isEmpty(geoLocation), "geoLocation value must not be null");
 		filterCriteria.add(new CriteriaEntry(OperationKey.WITHIN, new Object[]{geoLocation, distance}));
 		return this;
 	}
@@ -474,8 +475,8 @@ public class Criteria {
 	 * @return Criteria the chaind criteria with the new 'boundedBy' criteria included.
 	 */
 	public Criteria boundedBy(String topLeftGeohash, String bottomRightGeohash) {
-		Assert.isTrue(StringUtils.isNotBlank(topLeftGeohash), "topLeftGeohash must not be empty");
-		Assert.isTrue(StringUtils.isNotBlank(bottomRightGeohash), "bottomRightGeohash must not be empty");
+		Assert.isTrue(!StringUtils.isEmpty(topLeftGeohash), "topLeftGeohash must not be empty");
+		Assert.isTrue(!StringUtils.isEmpty(bottomRightGeohash), "bottomRightGeohash must not be empty");
 		filterCriteria.add(new CriteriaEntry(OperationKey.BBOX, new Object[]{topLeftGeohash, bottomRightGeohash}));
 		return this;
 	}
@@ -502,7 +503,7 @@ public class Criteria {
 	}
 
 	private void assertNoBlankInWildcardedQuery(String searchString, boolean leadingWildcard, boolean trailingWildcard) {
-		if (StringUtils.contains(searchString, CRITERIA_VALUE_SEPERATOR)) {
+		if (searchString != null && searchString.contains(CRITERIA_VALUE_SEPERATOR)) {
 			throw new InvalidDataAccessApiUsageException("Cannot constructQuery '" + (leadingWildcard ? "*" : "") + "\""
 					+ searchString + "\"" + (trailingWildcard ? "*" : "") + "'. Use expression or multiple clauses instead.");
 		}

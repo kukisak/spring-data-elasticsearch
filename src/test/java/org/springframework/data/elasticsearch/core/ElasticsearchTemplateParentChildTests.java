@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 the original author or authors.
+ * Copyright 2014-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,14 @@
  */
 package org.springframework.data.elasticsearch.core;
 
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.index.query.QueryBuilders.*;
+import static org.elasticsearch.common.xcontent.XContentFactory.*;
+import static org.elasticsearch.join.query.JoinQueryBuilders.hasChildQuery;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
 import java.util.List;
 
+import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.RoutingMissingException;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -30,6 +31,7 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 /**
  * @author Philipp Jardas
  */
+@Ignore(value = "DATAES-421")
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:elasticsearch-template-test.xml")
 public class ElasticsearchTemplateParentChildTests {
@@ -65,6 +68,7 @@ public class ElasticsearchTemplateParentChildTests {
 		elasticsearchTemplate.deleteIndex(ParentEntity.class);
 	}
 
+	@Ignore(value = "DATAES-421")
 	@Test
 	public void shouldIndexParentChildEntity() {
 		// index two parents
@@ -80,13 +84,14 @@ public class ElasticsearchTemplateParentChildTests {
 		elasticsearchTemplate.refresh(ChildEntity.class);
 
 		// find all parents that have the first child
-		QueryBuilder query = hasChildQuery(ParentEntity.CHILD_TYPE, QueryBuilders.termQuery("name", child1name.toLowerCase()));
+		QueryBuilder query = hasChildQuery(ParentEntity.CHILD_TYPE, QueryBuilders.termQuery("name", child1name.toLowerCase()), ScoreMode.None);
 		List<ParentEntity> parents = elasticsearchTemplate.queryForList(new NativeSearchQuery(query), ParentEntity.class);
 
 		// we're expecting only the first parent as result
 		assertThat("parents", parents, contains(hasProperty("id", is(parent1.getId()))));
 	}
 
+	@Ignore(value = "DATAES-421")
 	@Test
 	public void shouldUpdateChild() throws Exception {
 		// index parent and child
@@ -105,6 +110,7 @@ public class ElasticsearchTemplateParentChildTests {
 		assertThat(response.getShardInfo().getSuccessful(), is(1));
 	}
 
+	@Ignore(value = "DATAES-421")
 	@Test(expected = RoutingMissingException.class)
 	public void shouldFailWithRoutingMissingExceptionOnUpdateChildIfNotRoutingSetOnUpdateRequest() throws Exception {
 		// index parent and child
@@ -120,6 +126,7 @@ public class ElasticsearchTemplateParentChildTests {
 		update(updateRequest);
 	}
 
+	@Ignore(value = "DATAES-421")
 	@Test(expected = RoutingMissingException.class)
 	public void shouldFailWithRoutingMissingExceptionOnUpdateChildIfRoutingOnlySetOnRequestDoc() throws Exception {
 		// index parent and child

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 the original author or authors.
+ * Copyright 2014-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import org.springframework.data.elasticsearch.annotations.Setting;
  *
  * @author Mohsin Husen
  */
-@Document(indexName = "test-setting-index", type = "test-setting-type")
+@Document(indexName = "test-index-dynamic-setting-and-mapping", type = "test-setting-type")
 @Setting(settingPath = "/settings/test-settings.json")
 @Mapping(mappingPath = "/mappings/test-mappings.json")
 public class DynamicSettingAndMappingEntity {

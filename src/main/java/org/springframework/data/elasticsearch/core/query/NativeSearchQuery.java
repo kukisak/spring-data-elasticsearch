@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2016 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import java.util.List;
 
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.aggregations.AbstractAggregationBuilder;
-import org.elasticsearch.search.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.springframework.data.elasticsearch.core.facet.FacetRequest;
 
@@ -32,15 +32,17 @@ import java.util.Arrays;
  * @author Rizwan Idrees
  * @author Mohsin Husen
  * @author Artur Konczak
+ * @author Jean-Baptiste Nizet
  */
 public class NativeSearchQuery extends AbstractQuery implements SearchQuery {
 
 	private QueryBuilder query;
 	private QueryBuilder filter;
 	private List<SortBuilder> sorts;
-    private final List<ScriptField> scriptFields = new ArrayList<ScriptField>();
+    private final List<ScriptField> scriptFields = new ArrayList<>();
 	private List<FacetRequest> facets;
 	private List<AbstractAggregationBuilder> aggregations;
+	private HighlightBuilder highlightBuilder;
 	private HighlightBuilder.Field[] highlightFields;
 	private List<IndexBoost> indicesBoost;
 
@@ -67,6 +69,15 @@ public class NativeSearchQuery extends AbstractQuery implements SearchQuery {
 		this.highlightFields = highlightFields;
 	}
 
+	public NativeSearchQuery(QueryBuilder query, QueryBuilder filter, List<SortBuilder> sorts,
+			HighlightBuilder highlighBuilder, HighlightBuilder.Field[] highlightFields) {
+		this.query = query;
+		this.filter = filter;
+		this.sorts = sorts;
+		this.highlightBuilder = highlighBuilder;
+		this.highlightFields = highlightFields;
+	}
+
 	public QueryBuilder getQuery() {
 		return query;
 	}
@@ -77,6 +88,11 @@ public class NativeSearchQuery extends AbstractQuery implements SearchQuery {
 
 	public List<SortBuilder> getElasticsearchSorts() {
 		return sorts;
+	}
+
+	@Override
+	public HighlightBuilder getHighlightBuilder() {
+		return highlightBuilder;
 	}
 
 	@Override
@@ -97,7 +113,7 @@ public class NativeSearchQuery extends AbstractQuery implements SearchQuery {
 
 	public void addFacet(FacetRequest facetRequest) {
 		if (facets == null) {
-			facets = new ArrayList<FacetRequest>();
+			facets = new ArrayList<>();
 		}
 		facets.add(facetRequest);
 	}
@@ -119,7 +135,7 @@ public class NativeSearchQuery extends AbstractQuery implements SearchQuery {
 
 	public void addAggregation(AbstractAggregationBuilder aggregationBuilder) {
 		if (aggregations == null) {
-			aggregations = new ArrayList<AbstractAggregationBuilder>();
+			aggregations = new ArrayList<>();
 		}
 		aggregations.add(aggregationBuilder);
 	}

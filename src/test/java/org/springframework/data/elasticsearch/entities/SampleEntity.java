@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,43 +15,54 @@
  */
 package org.springframework.data.elasticsearch.entities;
 
-import lombok.*;
+import static org.springframework.data.elasticsearch.annotations.FieldType.*;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.Score;
 import org.springframework.data.elasticsearch.annotations.ScriptedField;
 import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 
 /**
  * @author Rizwan Idrees
  * @author Mohsin Husen
+ * @author Chris White
+ * @author Sascha Woo
  */
-
 @Setter
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 @Builder
-@Document(indexName = "test-index", type = "test-type", shards = 1, replicas = 0, refreshInterval = "-1")
+@Document(indexName = "test-index-sample", type = "test-type", shards = 1, replicas = 0, refreshInterval = "-1")
 public class SampleEntity {
 
 	@Id
 	private String id;
+	@Field(type = Text, store = true, fielddata = true)
 	private String type;
-	@Field(type = FieldType.String)
+	@Field(type = Text, store = true, fielddata = true)
 	private String message;
 	private int rate;
 	@ScriptedField
-	private Long scriptedRate;
+	private Double scriptedRate;
 	private boolean available;
 	private String highlightedMessage;
-
 	private GeoPoint location;
-
 	@Version
 	private Long version;
+	@Score
+	private float score;
 
 	@Override
 	public boolean equals(Object o) {

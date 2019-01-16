@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ public @interface Field {
 
 	FieldType type() default FieldType.Auto;
 
-	FieldIndex index() default FieldIndex.analyzed;
+	boolean index() default true;
 
 	DateFormat format() default DateFormat.none;
 
@@ -46,11 +46,17 @@ public @interface Field {
 
 	boolean store() default false;
 
+	boolean fielddata() default false;
+
 	String searchAnalyzer() default "";
 
 	String analyzer() default "";
 
+	String normalizer() default "";
+
 	String[] ignoreFields() default {};
 
 	boolean includeInParent() default false;
+
+	String[] copyTo() default {};
 }

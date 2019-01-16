@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 the original author or authors.
+ * Copyright 2014-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import java.util.Date;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldIndex;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 /**
@@ -30,7 +29,7 @@ public class AbstractInheritedEntity {
 	@Id
 	private String id;
 
-	@Field(type = FieldType.Date, index = FieldIndex.not_analyzed)
+	@Field(type = FieldType.Date, index = false)
 	private Date createdDate;
 
 	public String getId() {

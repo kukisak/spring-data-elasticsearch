@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 the original author or authors.
+ * Copyright 2014-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,29 +15,32 @@
  */
 package org.springframework.data.elasticsearch.core;
 
-import static org.apache.commons.lang.StringUtils.*;
-import static org.elasticsearch.common.xcontent.XContentFactory.*;
-import static org.springframework.util.StringUtils.*;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.math.NumberUtils;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.springframework.core.GenericCollectionTypeResolver;
+import org.springframework.core.ResolvableType;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.annotation.Transient;
-import org.springframework.data.elasticsearch.annotations.*;
+import org.springframework.data.elasticsearch.annotations.CompletionField;
+import org.springframework.data.elasticsearch.annotations.DateFormat;
 import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.GeoPointField;
+import org.springframework.data.elasticsearch.annotations.InnerField;
+import org.springframework.data.elasticsearch.annotations.Mapping;
+import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.core.completion.Completion;
 import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 import org.springframework.data.mapping.model.SimpleTypeHolder;
 import org.springframework.data.util.ClassTypeInformation;
 import org.springframework.data.util.TypeInformation;
+import org.springframework.util.StringUtils;
+
+import static org.elasticsearch.common.xcontent.XContentFactory.*;
+import static org.springframework.util.StringUtils.*;
 
 /**
  * @author Rizwan Idrees
@@ -47,32 +50,35 @@ import org.springframework.data.util.TypeInformation;
  * @author Alexander Volz
  * @author Dennis Maaß
  * @author Pavel Luhin
+ * @author Mark Paluch
+ * @author Sascha Woo
+ * @author Nordine Bittich
  */
-
 class MappingBuilder {
 
+	public static final String FIELD_DATA = "fielddata";
 	public static final String FIELD_STORE = "store";
 	public static final String FIELD_TYPE = "type";
 	public static final String FIELD_INDEX = "index";
 	public static final String FIELD_FORMAT = "format";
 	public static final String FIELD_SEARCH_ANALYZER = "search_analyzer";
 	public static final String FIELD_INDEX_ANALYZER = "analyzer";
+	public static final String FIELD_NORMALIZER = "normalizer";
 	public static final String FIELD_PROPERTIES = "properties";
 	public static final String FIELD_PARENT = "_parent";
+	public static final String FIELD_COPY_TO = "copy_to";
 
-	public static final String COMPLETION_PAYLOADS = "payloads";
 	public static final String COMPLETION_PRESERVE_SEPARATORS = "preserve_separators";
 	public static final String COMPLETION_PRESERVE_POSITION_INCREMENTS = "preserve_position_increments";
 	public static final String COMPLETION_MAX_INPUT_LENGTH = "max_input_length";
 
-	public static final String INDEX_VALUE_NOT_ANALYZED = "not_analyzed";
-	public static final String TYPE_VALUE_STRING = "string";
+	public static final String TYPE_VALUE_KEYWORD = "keyword";
 	public static final String TYPE_VALUE_GEO_POINT = "geo_point";
 	public static final String TYPE_VALUE_COMPLETION = "completion";
 	public static final String TYPE_VALUE_GEO_HASH_PREFIX = "geohash_prefix";
 	public static final String TYPE_VALUE_GEO_HASH_PRECISION = "geohash_precision";
 
-	private static SimpleTypeHolder SIMPLE_TYPE_HOLDER = new SimpleTypeHolder();
+	private static SimpleTypeHolder SIMPLE_TYPE_HOLDER = SimpleTypeHolder.DEFAULT;
 
 	static XContentBuilder buildMapping(Class clazz, String indexType, String idFieldName, String parentType) throws IOException {
 
@@ -85,7 +91,7 @@ class MappingBuilder {
 		// Properties
 		XContentBuilder xContentBuilder = mapping.startObject(FIELD_PROPERTIES);
 
-		mapEntity(xContentBuilder, clazz, true, idFieldName, EMPTY, false, FieldType.Auto, null);
+		mapEntity(xContentBuilder, clazz, true, idFieldName, "", false, FieldType.Auto, null);
 
 		return xContentBuilder.endObject().endObject().endObject();
 	}
@@ -116,7 +122,7 @@ class MappingBuilder {
 
 			if (field.isAnnotationPresent(Mapping.class)) {
 				String mappingPath = field.getAnnotation(Mapping.class).mappingPath();
-				if (isNotBlank(mappingPath)) {
+				if (!StringUtils.isEmpty(mappingPath)) {
 					ClassPathResource mappings = new ClassPathResource(mappingPath);
 					if (mappings.exists()) {
 						xContentBuilder.rawField(field.getName(), mappings.getInputStream());
@@ -134,7 +140,7 @@ class MappingBuilder {
 					continue;
 				}
 				boolean nestedOrObject = isNestedOrObjectField(field);
-				mapEntity(xContentBuilder, getFieldType(field), false, EMPTY, field.getName(), nestedOrObject, singleField.type(), field.getAnnotation(Field.class));
+				mapEntity(xContentBuilder, getFieldType(field), false, "", field.getName(), nestedOrObject, singleField.type(), field.getAnnotation(Field.class));
 				if (nestedOrObject) {
 					continue;
 				}
@@ -167,7 +173,7 @@ class MappingBuilder {
 
 	private static java.lang.reflect.Field[] retrieveFields(Class clazz) {
 		// Create list of fields.
-		List<java.lang.reflect.Field> fields = new ArrayList<java.lang.reflect.Field>();
+		List<java.lang.reflect.Field> fields = new ArrayList<>();
 
 		// Keep backing up the inheritance hierarchy.
 		Class targetClass = clazz;
@@ -190,21 +196,6 @@ class MappingBuilder {
 	private static void applyGeoPointFieldMapping(XContentBuilder xContentBuilder, java.lang.reflect.Field field) throws IOException {
 		xContentBuilder.startObject(field.getName());
 		xContentBuilder.field(FIELD_TYPE, TYPE_VALUE_GEO_POINT);
-
-		GeoPointField annotation = field.getAnnotation(GeoPointField.class);
-		if (annotation != null) {
-			if (annotation.geoHashPrefix()) {
-				xContentBuilder.field(TYPE_VALUE_GEO_HASH_PREFIX, true);
-				if (StringUtils.isNotEmpty(annotation.geoHashPrecision())) {
-					if (NumberUtils.isNumber(annotation.geoHashPrecision())) {
-						xContentBuilder.field(TYPE_VALUE_GEO_HASH_PRECISION, Integer.parseInt(annotation.geoHashPrecision()));
-					} else {
-						xContentBuilder.field(TYPE_VALUE_GEO_HASH_PRECISION, annotation.geoHashPrecision());
-					}
-				}
-			}
-		}
-
 		xContentBuilder.endObject();
 	}
 
@@ -213,13 +204,12 @@ class MappingBuilder {
 		xContentBuilder.field(FIELD_TYPE, TYPE_VALUE_COMPLETION);
 		if (annotation != null) {
 			xContentBuilder.field(COMPLETION_MAX_INPUT_LENGTH, annotation.maxInputLength());
-			xContentBuilder.field(COMPLETION_PAYLOADS, annotation.payloads());
 			xContentBuilder.field(COMPLETION_PRESERVE_POSITION_INCREMENTS, annotation.preservePositionIncrements());
 			xContentBuilder.field(COMPLETION_PRESERVE_SEPARATORS, annotation.preserveSeparators());
-			if (isNotBlank(annotation.searchAnalyzer())) {
+			if (!StringUtils.isEmpty(annotation.searchAnalyzer())) {
 				xContentBuilder.field(FIELD_SEARCH_ANALYZER, annotation.searchAnalyzer());
 			}
-			if (isNotBlank(annotation.analyzer())) {
+			if (!StringUtils.isEmpty(annotation.analyzer())) {
 				xContentBuilder.field(FIELD_INDEX_ANALYZER, annotation.analyzer());
 			}
 		}
@@ -229,82 +219,118 @@ class MappingBuilder {
 	private static void applyDefaultIdFieldMapping(XContentBuilder xContentBuilder, java.lang.reflect.Field field)
 			throws IOException {
 		xContentBuilder.startObject(field.getName())
-				.field(FIELD_TYPE, TYPE_VALUE_STRING)
-				.field(FIELD_INDEX, INDEX_VALUE_NOT_ANALYZED);
+				.field(FIELD_TYPE, TYPE_VALUE_KEYWORD)
+				.field(FIELD_INDEX, true);
 		xContentBuilder.endObject();
 	}
 
 	/**
-	 * Apply mapping for a single @Field annotation
+	 * Add mapping for @Field annotation
 	 *
 	 * @throws IOException
 	 */
-	private static void addSingleFieldMapping(XContentBuilder xContentBuilder, java.lang.reflect.Field field,
-											  Field fieldAnnotation, boolean nestedOrObjectField) throws IOException {
-		xContentBuilder.startObject(field.getName());
-		if(!nestedOrObjectField) {
-			xContentBuilder.field(FIELD_STORE, fieldAnnotation.store());
+	private static void addSingleFieldMapping(XContentBuilder builder, java.lang.reflect.Field field, Field annotation, boolean nestedOrObjectField) throws IOException {
+		builder.startObject(field.getName());
+		addFieldMappingParameters(builder, annotation, nestedOrObjectField);
+		builder.endObject();
+	}
+
+	/**
+	 * Add mapping for @MultiField annotation
+	 *
+	 * @throws IOException
+	 */
+	private static void addMultiFieldMapping(
+		XContentBuilder builder,
+		java.lang.reflect.Field field,
+		MultiField annotation,
+		boolean nestedOrObjectField) throws IOException {
+
+		// main field
+		builder.startObject(field.getName());
+		addFieldMappingParameters(builder, annotation.mainField(), nestedOrObjectField);
+
+		// inner fields
+		builder.startObject("fields");
+		for (InnerField innerField : annotation.otherFields()) {
+			builder.startObject(innerField.suffix());
+			addFieldMappingParameters(builder, innerField, false);
+			builder.endObject();
 		}
-		if (FieldType.Auto != fieldAnnotation.type()) {
-			xContentBuilder.field(FIELD_TYPE, fieldAnnotation.type().name().toLowerCase());
-			if (FieldType.Date == fieldAnnotation.type() && DateFormat.none != fieldAnnotation.format()) {
-				xContentBuilder.field(FIELD_FORMAT, DateFormat.custom == fieldAnnotation.format()
-						? fieldAnnotation.pattern() : fieldAnnotation.format());
+		builder.endObject();
+
+		builder.endObject();
+	}
+
+	private static void addFieldMappingParameters(XContentBuilder builder, Object annotation, boolean nestedOrObjectField) throws IOException {
+		boolean index = true;
+		boolean store = false;
+		boolean fielddata = false;
+		FieldType type = null;
+		DateFormat dateFormat = null;
+		String datePattern = null;
+		String analyzer = null;
+		String searchAnalyzer = null;
+		String normalizer = null;
+		String[] copyTo = null;
+
+		if (annotation instanceof Field) {
+			// @Field
+			Field fieldAnnotation = (Field) annotation;
+			index = fieldAnnotation.index();
+			store = fieldAnnotation.store();
+			fielddata = fieldAnnotation.fielddata();
+			type = fieldAnnotation.type();
+			dateFormat = fieldAnnotation.format();
+			datePattern = fieldAnnotation.pattern();
+			analyzer = fieldAnnotation.analyzer();
+			searchAnalyzer = fieldAnnotation.searchAnalyzer();
+			normalizer = fieldAnnotation.normalizer();
+			copyTo = fieldAnnotation.copyTo();
+		} else if (annotation instanceof InnerField) {
+			// @InnerField
+			InnerField fieldAnnotation = (InnerField) annotation;
+			index = fieldAnnotation.index();
+			store = fieldAnnotation.store();
+			fielddata = fieldAnnotation.fielddata();
+			type = fieldAnnotation.type();
+			dateFormat = fieldAnnotation.format();
+			datePattern = fieldAnnotation.pattern();
+			analyzer = fieldAnnotation.analyzer();
+			searchAnalyzer = fieldAnnotation.searchAnalyzer();
+			normalizer = fieldAnnotation.normalizer();
+		} else {
+			throw new IllegalArgumentException("annotation must be an instance of @Field or @InnerField");
+		}
+
+		if (!nestedOrObjectField) {
+			builder.field(FIELD_STORE, store);
+		}
+		if (fielddata) {
+			builder.field(FIELD_DATA, fielddata);
+		}
+		if (type != FieldType.Auto) {
+			builder.field(FIELD_TYPE, type.name().toLowerCase());
+
+			if (type == FieldType.Date && dateFormat != DateFormat.none) {
+				builder.field(FIELD_FORMAT, dateFormat == DateFormat.custom ? datePattern : dateFormat.toString());
 			}
 		}
-		if (FieldIndex.not_analyzed == fieldAnnotation.index() || FieldIndex.no == fieldAnnotation.index()) {
-			xContentBuilder.field(FIELD_INDEX, fieldAnnotation.index().name().toLowerCase());
+		if (!index) {
+			builder.field(FIELD_INDEX, index);
 		}
-		if (isNotBlank(fieldAnnotation.searchAnalyzer())) {
-			xContentBuilder.field(FIELD_SEARCH_ANALYZER, fieldAnnotation.searchAnalyzer());
+		if (!StringUtils.isEmpty(analyzer)) {
+			builder.field(FIELD_INDEX_ANALYZER, analyzer);
 		}
-		if (isNotBlank(fieldAnnotation.analyzer())) {
-			xContentBuilder.field(FIELD_INDEX_ANALYZER, fieldAnnotation.analyzer());
+		if (!StringUtils.isEmpty(searchAnalyzer)) {
+			builder.field(FIELD_SEARCH_ANALYZER, searchAnalyzer);
 		}
-		xContentBuilder.endObject();
-	}
-
-	/**
-	 * Apply mapping for a single nested @Field annotation
-	 *
-	 * @throws IOException
-	 */
-	private static void addNestedFieldMapping(XContentBuilder builder, java.lang.reflect.Field field,
-											  InnerField annotation) throws IOException {
-		builder.startObject(annotation.suffix());
-		//builder.field(FIELD_STORE, annotation.store());
-		if (FieldType.Auto != annotation.type()) {
-			builder.field(FIELD_TYPE, annotation.type().name().toLowerCase());
+		if (!StringUtils.isEmpty(normalizer)) {
+			builder.field(FIELD_NORMALIZER, normalizer);
 		}
-		if (FieldIndex.not_analyzed == annotation.index()) {
-			builder.field(FIELD_INDEX, annotation.index().name().toLowerCase());
+		if (copyTo != null && copyTo.length > 0) {
+			builder.field(FIELD_COPY_TO, copyTo);
 		}
-		if (isNotBlank(annotation.searchAnalyzer())) {
-			builder.field(FIELD_SEARCH_ANALYZER, annotation.searchAnalyzer());
-		}
-		if (isNotBlank(annotation.indexAnalyzer())) {
-			builder.field(FIELD_INDEX_ANALYZER, annotation.indexAnalyzer());
-		}
-		builder.endObject();
-	}
-
-	/**
-	 * Multi field mappings for string type fields, support for sorts and facets
-	 *
-	 * @throws IOException
-	 */
-	private static void addMultiFieldMapping(XContentBuilder builder, java.lang.reflect.Field field,
-											 MultiField annotation, boolean nestedOrObjectField) throws IOException {
-		builder.startObject(field.getName());
-		builder.field(FIELD_TYPE, "multi_field");
-		builder.startObject("fields");
-		//add standard field
-		addSingleFieldMapping(builder, field, annotation.mainField(),nestedOrObjectField);
-		for (InnerField innerField : annotation.otherFields()) {
-			addNestedFieldMapping(builder, field, innerField);
-		}
-		builder.endObject();
-		builder.endObject();
 	}
 
 	protected static boolean isEntity(java.lang.reflect.Field field) {
@@ -315,12 +341,20 @@ class MappingBuilder {
 	}
 
 	protected static Class<?> getFieldType(java.lang.reflect.Field field) {
-		Class<?> clazz = field.getType();
-		TypeInformation typeInformation = ClassTypeInformation.from(clazz);
-		if (typeInformation.isCollectionLike()) {
-			clazz = GenericCollectionTypeResolver.getCollectionFieldType(field) != null ? GenericCollectionTypeResolver.getCollectionFieldType(field) : typeInformation.getComponentType().getType();
+
+		ResolvableType resolvableType = ResolvableType.forField(field);
+
+		if (resolvableType.isArray()) {
+			return resolvableType.getComponentType().getRawClass();
 		}
-		return clazz;
+
+		ResolvableType componentType = resolvableType.getGeneric(0);
+		if (Iterable.class.isAssignableFrom(field.getType())
+				&& componentType != ResolvableType.NONE) {
+			return componentType.getRawClass();
+		}
+
+		return resolvableType.getRawClass();
 	}
 
 	private static boolean isAnyPropertyAnnotatedAsField(java.lang.reflect.Field[] fields) {

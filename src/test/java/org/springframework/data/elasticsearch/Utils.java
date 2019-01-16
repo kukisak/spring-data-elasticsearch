@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,24 +15,35 @@
  */
 package org.springframework.data.elasticsearch;
 
-import static org.elasticsearch.node.NodeBuilder.*;
-
 import java.util.UUID;
-
-import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.node.NodeValidationException;
+import org.elasticsearch.transport.Netty4Plugin;
+import org.springframework.data.elasticsearch.client.NodeClientFactoryBean;
+import static java.util.Arrays.*;
 
 /**
  * @author Mohsin Husen
+ * @author Artur Konczak
+ * @author Ilkang Na
  */
 public class Utils {
 
-	public static NodeClient getNodeClient() {
-		return (NodeClient) nodeBuilder().settings(Settings.builder()
-				.put("http.enabled", "false")
-				.put("path.data", "target/elasticsearchTestData")
-				.put("path.home", "src/test/resources/test-home-dir"))
-				.clusterName(UUID.randomUUID().toString()).local(true).node()
-				.client();
+	public static Client getNodeClient() throws NodeValidationException {
+
+		String pathHome = "src/test/resources/test-home-dir";
+		String pathData = "target/elasticsearchTestData";
+		String clusterName = UUID.randomUUID().toString();
+
+		return new NodeClientFactoryBean.TestNode(
+				Settings.builder()
+						.put("transport.type", "netty4")
+						.put("http.type", "netty4")
+						.put("path.home", pathHome)
+						.put("path.data", pathData)
+						.put("cluster.name", clusterName)
+						.put("node.max_local_storage_nodes", 100)
+						.build(), asList(Netty4Plugin.class)).start().client();
 	}
 }

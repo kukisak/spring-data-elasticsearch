@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 the original author or authors.
+ * Copyright 2014-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 package org.springframework.data.elasticsearch.core.facet.request;
 
-import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.search.aggregations.AbstractAggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramBuilder;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.springframework.data.elasticsearch.core.facet.AbstractFacetRequest;
 import org.springframework.util.Assert;
-
+import org.springframework.util.StringUtils;
 
 /**
  * @author Artur Konczak
@@ -54,19 +53,19 @@ public class HistogramFacetRequest extends AbstractFacetRequest {
 
 	public AbstractAggregationBuilder getFacet() {
 		Assert.notNull(getName(), "Facet name can't be a null !!!");
-		Assert.isTrue(StringUtils.isNotBlank(field), "Please select field on which to build the facet !!!");
+		Assert.isTrue(!StringUtils.isEmpty(field), "Please select field on which to build the facet !!!");
 		Assert.isTrue(interval > 0, "Please provide interval as positive value greater them zero !!!");
 
-		DateHistogramBuilder dateHistogramBuilder = AggregationBuilders.dateHistogram(getName());
+		DateHistogramAggregationBuilder dateHistogramBuilder = AggregationBuilders.dateHistogram(getName());
 		dateHistogramBuilder.field(field);
 
 		if (timeUnit != null) {
-			dateHistogramBuilder.interval(timeUnit);
+			dateHistogramBuilder.dateHistogramInterval(timeUnit);
 		} else {
 			dateHistogramBuilder.interval(interval);
 		}
 
-		dateHistogramBuilder.subAggregation(AggregationBuilders.extendedStats(INTERNAL_STATS));
+		dateHistogramBuilder.subAggregation(AggregationBuilders.extendedStats(INTERNAL_STATS).field(field));
 
 		return dateHistogramBuilder;
 	}
